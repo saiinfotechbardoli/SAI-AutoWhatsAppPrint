@@ -21,6 +21,159 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/saiinfotech/autowhatsappprint
+          mkdir -p app/src/main/res/xml
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "SAIAutoWhatsAppPrint"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.saiinfotech.autowhatsappprint'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.saiinfotech.autowhatsappprint'
+                  minSdk 26
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application
+                  android:label="SAI Auto WhatsApp Print"
+                  android:theme="@android:style/Theme.Material.Light">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".SaiPrintService"
+                      android:permission="android.permission.BIND_PRINT_SERVICE"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.printservice.PrintService"/>
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.printservice"
+                          android:resource="@xml/printservice"/>
+                  </service>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/res/xml/printservice.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <print-service xmlns:android="http://schemas.android.com/apk/res/android"/>
+          EOF
+
+          cat > app/src/main/java/com/saiinfotech/autowhatsappprint/MainActivity.kt <<'EOF'
+          package com.saiinfotech.autowhatsappprint
+
+          import android.app.Activity
+          import android.os.Bundle
+          import android.widget.TextView
+
+          class MainActivity : Activity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  val t = TextView(this)
+                  t.text = "SAI INFOTECH\n\nAuto WhatsApp Print\n\nPrototype"
+                  t.textSize = 24f
+                  t.setPadding(40, 60, 40, 40)
+                  setContentView(t)
+              }
+          }
+          EOF
+
+          cat > app/src/main/java/com/saiinfotech/autowhatsappprint/SaiPrintService.kt <<'EOF'
+          package com.saiinfotech.autowhatsappprint
+
+          import android.print.PrintJob
+          import android.print.PrinterId
+          import android.print.PrinterInfo
+          import android.printservice.PrintService
+          import android.printservice.PrinterDiscoverySession
+
+          class SaiPrintService : PrintService() {
+
+              override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession {
+                  return SaiDiscoverySession()
+              }
+
+              override fun onPrintJobQueued(printJob: PrintJob) {
+                  printJob.fail("Capture engine is under development")
+              }
+
+              override fun onRequestCancelPrintJob(printJob: PrintJob) {
+                  printJob.cancel()
+              }
+
+              inner class SaiDiscoverySession : PrinterDiscoverySession() {
+                  override fun onStartPrinterDiscovery(
+                      priorityList: List<PrinterId>
+                  ) {
+                      val id = generatePrinterId("SAI-WhatsApp-Printer")
+                      val printer = PrinterInfo.Builder(
+                          id,
+                          "SAI INFOTECH WhatsApp Printer",
+                          PrinterInfo.STATUS_IDLE
+                      ).build()
+                      addPrinters(listOf(printer))
+                  }
+
+                  override fun onStopPrinterDiscovery() {}
+
+                  override fun onValidatePrinters(printerIds: List<PrinterId>) {}
+
+                  override fun onStartPrinterStateTracking(printerId: PrinterId) {}
+
+                  override fun onStopPrinterStateTracking(printerId: PrinterId) {}
+
+                  override fun onDestroy() {}
+              }
+          }
+          EOF
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
